@@ -64,6 +64,26 @@ exports.paths = [
     path : "clientsearch",
     index: "search",
     type : "client"
+  },
+  {
+    path : "productsearch",
+    index: "search",
+    type : "product"
+  },
+  {
+    path : "couponsearch",
+    index: "search",
+    type : "coupon"
+  },
+  {
+    path : "eventsearch",
+    index: "search",
+    type : "event"
+  },
+  {
+    path : "jobsearch",
+    index: "search",
+    type : "job"
   }
 ];
 
