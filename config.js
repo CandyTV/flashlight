@@ -84,6 +84,11 @@ exports.paths = [
     path : "jobsearch",
     index: "search",
     type : "job"
+  },
+  {
+    path : "programsearch",
+    index: "search",
+    type : "program"
   }
 ];
 
