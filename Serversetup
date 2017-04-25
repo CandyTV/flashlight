@@ -1,0 +1,108 @@
+# Ubuntu update upgrade
+sed -i '54s/^#//' /etc/gai.conf
+apt -y update
+apt -y upgrade
+
+# Set hostname
+hostnamectl set-hostname candyelastic
+
+# Set timezone
+timedatectl set-timezone Asia/Hong_Kong
+
+# Unattended upgrade
+apt install -y unattended-upgrades
+sed -i '9s/^\/\///' /etc/apt/apt.conf.d/50unattended-upgrades
+
+# Add group
+groupadd developer
+
+# Add user (MANUAL ENTER PASSWORD & INFO)
+adduser samsit
+adduser samsit developer
+adduser samsit sudo
+adduser michaelso
+adduser michaelso developer
+adduser michaelso sudo
+
+# Logout and login as limited user
+
+# Change permission of user home directory
+mkdir -p ~/.ssh && sudo chmod -R 700 ~/.ssh/
+
+# Copy ssh key to server (REQUIRE PASSWORD)
+scp ~/.ssh/id_rsa.pub samsit@74.207.243.122:~/.ssh/authorized_keys
+
+# Login as limited user
+
+# Disable root login and password authentication (REQUIRE PASSWORD)
+sudo sed -i 's/PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+sudo sed -i 's/PasswordAuthentication yes/PasswordAuthentication no/g' /etc/ssh/sshd_config
+sudo sed -i 's/#Port 22/Port 22522/g' /etc/ssh/sshd_config
+sudo service sshd restart
+
+# Install Fail2ban
+sudo apt install -y fail2ban
+sudo cp /etc/fail2ban/fail2ban.conf /etc/fail2ban/fail2ban.local
+sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+sudo sed -i 's/\= ssh/\= 22522/g' /etc/fail2ban/jail.local
+sudo fail2ban-client reload
+
+# Set ufw rule
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw allow 22522
+sudo ufw enable
+sudo ufw logging on
+
+# Install node
+curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install elasticsearch
+sudo apt install -y default-jdk-headless
+wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | sudo apt-key add -
+sudo apt install -y elasticsearch
+sudo apt update && sudo apt install -y elasticsearch
+
+# Configure elasticsearch
+
+sudo cp -p /etc/elasticsearch/elasticsearch.yml /etc/elasticsearch/elasticsearch.yml.original
+- change cluster.name
+- can uncomment node.name
+- uncomment bootstrap.memory_lock
+
+sudo cp -p /etc/elasticsearch/jvm.options /etc/elasticsearch/jvm.options.original
+- change -Xms2g and -Xmx2g to half of the memory of your machine
+
+sudo service elasticsearch start
+
+# Prepare directory for Flashlight
+cd /home
+sudo mkdir -m 2775 common
+sudo chown -R samsit:developer common
+sudo apt install git
+cd common
+
+# Install PM2
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv D1EA2D4C
+echo "deb http://apt.pm2.io/ubuntu stable main" | sudo tee /etc/apt/sources.list.d/pm2.list
+sudo apt-get update && sudo apt install -y pm2
+
+# Fork Flashlight Repo (Click "fork" in Flashlight Repo first)
+git clone https://github.com/CandyTV/flashlight.git
+cd flashlight
+git remote add upstream https://github.com/firebase/flashlight.git
+npm install
+
+# Configure config.js
+cp -p ./lib/config.example.js ./lib/config.js
+- Change your firebase url
+- Add path-index-type (group-subgroup-trueBranchInFirebase)
+
+# Add service-account.json into the server
+
+# Start app.js in PM2 routine
+pm2 startup
+sudo env PATH=$PATH:/usr/bin /usr/share/pm2/bin/pm2 startup systemd -u samsit --hp /home/samsit
+pm2 start app.js -i 0 --name "elasticsearch"
+pm2 save
